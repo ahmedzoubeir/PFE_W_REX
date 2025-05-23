@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Document | Hybrid RAG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 2rem; padding-bottom: 2rem; }
+        .query-form { max-width: 800px; margin: 0 auto; }
+        .flash-messages { margin-bottom: 1.5rem; }
+        .result-container { margin-top: 2rem; }
+        .result-box { background-color: #f8f9fa; border-radius: 5px; padding: 15px; margin-bottom: 15px; }
+        .context-item { margin-bottom: 10px; padding: 10px; background-color: #e9ecef; border-radius: 5px; }
+        #loading { display: none; }
+        pre { white-space: pre-wrap; }
+        .back-link { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-link">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">← Back to Home</a>
+        </div>
+        
+        <h1 class="text-center mb-4">Query Document</h1>
+        
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="query-form p-4 border rounded bg-light">
+            <h2 class="mb-3">Ask Questions</h2>
+            <p class="mb-3">Current collection: <strong>{{ collection_name }}</strong></p>
+            
+            <div class="mb-3">
+                <label for="query" class="form-label">Your Question</label>
+                <textarea class="form-control" id="query" rows="3" placeholder="Enter your question here..."></textarea>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="model_llm" class="form-label">LLM Model</label>
+                    <select class="form-select" id="model_llm">
+                        <option value="llama2:13b" selected>Llama 2 (13B)</option>
+                        <option value="llama3:8b">Llama 3 (8B)</option>
+                        <option value="mistral:7b">Mistral (7B)</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="model_embed" class="form-label">Embedding Model</label>
+                    <select class="form-select" id="model_embed">
+                        <option value="mxbai-embed-large:latest" selected>MxBai Embed Large</option>
+                        <option value="all-MiniLM-L6-v2">MiniLM</option>
+                    </select>
+                </div>
+                
+                <div class="col-md-4">
+                    <label for="n_results" class="form-label">Result Count</label>
+                    <input type="number" class="form-control" id="n_results" value="5" min="1" max="20">
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="button" id="submit-query" class="btn btn-primary">Submit Query</button>
+                <a href="{{ url_for('rag_index') }}" class="btn btn-secondary">Upload Another Document</a>
+            </div>
+            
+            <div id="loading" class="text-center mt-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Processing your query...</p>
+            </div>
+        </div>
+        
+        <div id="result-container" class="result-container" style="display: none;">
+            <h3 class="mb-3">Results</h3>
+            
+            <div class="result-box">
+                <h4>Generated Answer</h4>
+                <div id="response"></div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="result-box">
+                        <h4>Retrieved Contexts</h4>
+                        <div id="contexts"></div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="result-box">
+                        <h4>Search Insights</h4>
+                        <div id="hybrid-info"></div>
+                        <div id="insights"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('submit-query').addEventListener('click', async function() {
+            const queryText = document.getElementById('query').value.trim();
+            if (!queryText) {
+                alert('Please enter a query');
+                return;
+            }
+            
+            // Show loading indicator
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result-container').style.display = 'none';
+            
+            try {
+                const response = await fetch('/rag/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: queryText,
+                        collection_name: '{{ collection_name }}',
+                        model_embed: document.getElementById('model_embed').value,
+                        model_llm: document.getElementById('model_llm').value,
+                        n_results: document.getElementById('n_results').value
+                    }),
+                });
+                
+                const result = await response.json();
+                
+                // Hide loading indicator
+                document.getElementById('loading').style.display = 'none';
+                
+                if (result.error) {
+                    alert('Error: ' + result.error);
+                    return;
+                }
+                
+                // Show result container
+                document.getElementById('result-container').style.display = 'block';
+                
+                // Display response
+                document.getElementById('response').innerHTML = `<p>${result.response}</p>`;
+                
+                // Display contexts
+                const contextsDiv = document.getElementById('contexts');
+                contextsDiv.innerHTML = '';
+                
+                if (result.context && result.context.length > 0) {
+                    result.context.forEach((ctx, index) => {
+                        const contextDiv = document.createElement('div');
+                        contextDiv.className = 'context-item';
+                        contextDiv.innerHTML = `
+                            <strong>Context ${index + 1}</strong>
+                            <pre>${ctx.substring(0, 300)}${ctx.length > 300 ? '...' : ''}</pre>
+                        `;
+                        contextsDiv.appendChild(contextDiv);
+                    });
+                } else {
+                    contextsDiv.innerHTML = '<p>No contexts found</p>';
+                }
+                
+                // Display hybrid info
+                const hybridInfoDiv = document.getElementById('hybrid-info');
+                if (result.hybrid_info) {
+                    hybridInfoDiv.innerHTML = `
+                        <p><strong>Methods used:</strong> ${result.hybrid_info.methods_used.join(', ')}</p>
+                        <p><strong>Result count:</strong> ${result.hybrid_info.result_count}</p>
+                    `;
+                } else {
+                    hybridInfoDiv.innerHTML = '<p>No hybrid search info available</p>';
+                }
+                
+                // Display insights
+                const insightsDiv = document.getElementById('insights');
+                insightsDiv.innerHTML = '<h5 class="mt-3">Content Insights</h5>';
+                
+                if (result.insights && result.insights.length > 0) {
+                    result.insights.forEach((insight, index) => {
+                        if (index < 3) { // Limit to top 3 insights
+                            const insightDiv = document.createElement('div');
+                            insightDiv.className = 'context-item';
+                            insightDiv.innerHTML = `
+                                <strong>Insight ${index + 1}</strong> 
+                                <span class="badge bg-info">Confidence: ${(insight.confidence * 100).toFixed(0)}%</span>
+                                <span class="badge bg-secondary">Methods: ${insight.methods.join(', ')}</span>
+                                <pre>${insight.content.substring(0, 150)}${insight.content.length > 150 ? '...' : ''}</pre>
+                            `;
+                            insightsDiv.appendChild(insightDiv);
+                        }
+                    });
+                } else {
+                    insightsDiv.innerHTML += '<p>No insights available</p>';
+                }
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                alert('Error processing query: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

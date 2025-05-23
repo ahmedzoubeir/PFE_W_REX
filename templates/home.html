@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified AI Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f7fa;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+        .header {
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+        .card {
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-bottom: 1.5rem;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+        .card-header {
+            background-color: #007bff;
+            color: white;
+            padding: 1rem;
+            font-weight: bold;
+        }
+        .card-header.sql {
+            background-color: #28a745;
+        }
+        .card-body {
+            padding: 2rem;
+        }
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            padding: 0.5rem 1.5rem;
+        }
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+            padding: 0.5rem 1.5rem;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 1rem;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="display-4">Unified AI Assistant</h1>
+            <p class="lead">Choose which AI assistant you'd like to use</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Document Q&A (RAG)</h2>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="icon">📄</div>
+                        <h3>Document Question Answering</h3>
+                        <p>Upload PDF, TXT, CSV, or XLSX files and ask questions about their content. Our AI assistant uses Retrieval Augmented Generation (RAG) to provide accurate answers.</p>
+                        <a href="{{ url_for('rag_index') }}" class="btn btn-primary btn-lg">Use RAG Assistant</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header sql">
+                        <h2>SQL Database Agent</h2>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="icon">💾</div>
+                        <h3>Database Query Assistant</h3>
+                        <p>Ask questions about your MySQL databases in natural language. Upload Excel files to create new databases or query existing ones with simple English questions.</p>
+                        <a href="{{ url_for('sql_index') }}" class="btn btn-success btn-lg">Use SQL Assistant</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 Unified AI Assistant. Both assistants use large language models to help you work with your data.</p>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Agent Interface with REX</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container { margin-top: 30px; }
+        .result-box { 
+            background-color: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        pre { white-space: pre-wrap; }
+        .sample-data {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .sql-query {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 15px;
+            border: 1px solid #dee2e6;
+        }
+        .back-link {
+            margin-bottom: 20px;
+        }
+        .rex-analysis {
+            background-color: #e8f4fd;
+            border: 1px solid #b3d9f7;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+        .rex-analysis h5 {
+            color: #0d47a1;
+            margin-bottom: 15px;
+        }
+        .results-table {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .results-table table {
+            font-size: 0.9em;
+        }
+        .results-table td {
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 8px 12px;
+        }
+        .results-table td:hover {
+            overflow: visible;
+            white-space: normal;
+            background-color: #fff3cd;
+            z-index: 10;
+            position: relative;
+        }
+        .result-count {
+            font-weight: bold;
+            color: #0d6efd;
+            font-size: 1.1em;
+        }
+        .loading-container {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .question-input {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .card-header h5 {
+            margin-bottom: 0;
+        }
+        .alert-custom {
+            border-left: 4px solid #dc3545;
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-link">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">← Back to Home</a>
+        </div>
+        
+        <h1 class="mb-4">🤖 SQL Agent Interface with REX Analysis</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5>Select Existing Database</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('sql_view_database') }}" method="post">
+                            <div class="mb-3">
+                                <label for="database" class="form-label">Choose Database:</label>
+                                <select name="database" id="database" class="form-select" required>
+                                    <option value="" disabled selected>Select a database</option>
+                                    {% for db in databases %}
+                                    <option value="{{ db }}" {% if selected_db == db %}selected{% endif %}>{{ db }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">View Database</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5>Upload New Database</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('sql_upload_file') }}" method="post" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="file" class="form-label">Excel File:</label>
+                                <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="new_db_name" class="form-label">Database Name:</label>
+                                <input type="text" class="form-control" id="new_db_name" name="new_db_name" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Upload & Create DB</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if selected_db %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5>💬 Ask Questions to SQL Agent (Database: {{ selected_db }})</h5>
+            </div>
+            <div class="card-body">
+                <form id="queryForm">
+                    <input type="hidden" id="db_name" name="db_name" value="{{ selected_db }}">
+                    <div class="mb-3">
+                        <label for="question" class="form-label">Your Question (French/English):</label>
+                        <textarea class="form-control question-input" id="question" name="question" 
+                               placeholder="Exemple: sélectionnez les lignes avec Référence « ASM» et la Description contient « bloc ou vis »..." required></textarea>
+                        <div class="form-text">You can ask complex questions in French or English. The system will generate appropriate SQL queries.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <span class="spinner-border spinner-border-sm" id="submitSpinner" style="display: none;" role="status"></span>
+                        🔍 Analyze with REX
+                    </button>
+                </form>
+                
+                <div id="loadingContainer" class="loading-container">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing your question and analyzing results...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div id="resultsSection" style="display: none;">
+            <!-- REX Analysis Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5>🤖 REX Analysis & Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div id="rexAnalysis" class="rex-analysis"></div>
+                </div>
+            </div>
+            
+            <!-- SQL Query Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5>📝 Generated SQL Query</h5>
+                </div>
+                <div class="card-body">
+                    <div id="sqlQuery" class="sql-query"></div>
+                </div>
+            </div>
+            
+            <!-- Results Table Card -->
+            <div class="card mb-4">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5>📊 Query Results</h5>
+                    <span id="resultCount" class="result-count badge bg-light text-dark"></span>
+                </div>
+                <div class="card-body">
+                    <div id="resultsTable" class="results-table"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Error Display -->
+        <div id="errorSection" class="alert alert-custom" style="display: none;">
+            <h5>❌ Error:</h5>
+            <div id="errorMessage"></div>
+        </div>
+        
+        {% if sample_data %}
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5>📋 Sample Data Preview ({{ table_name }})</h5>
+            </div>
+            <div class="card-body">
+                <div class="sample-data">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                {% for column in sample_data[0].keys() %}
+                                <th>{{ column }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in sample_data %}
+                            <tr>
+                                {% for value in row.values() %}
+                                <td>{{ value }}</td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('queryForm')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const question = formData.get('question');
+            const dbName = formData.get('db_name');
+            
+            // Show loading indicators
+            document.getElementById('loadingContainer').style.display = 'block';
+            document.getElementById('submitSpinner').style.display = 'inline-block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'none';
+            
+            // Disable submit button
+            const submitBtn = this.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            
+            fetch('/sql/query', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading indicators
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('submitSpinner').style.display = 'none';
+                submitBtn.disabled = false;
+                
+                if (data.error) {
+                    // Show error
+                    document.getElementById('errorMessage').innerHTML = `<strong>Error Details:</strong><br>${escapeHtml(data.error)}`;
+                    document.getElementById('errorSection').style.display = 'block';
+                } else {
+                    // Display results
+                    displayResults(data);
+                }
+            })
+            .catch(error => {
+                // Hide loading indicators
+                document.getElementById('loadingContainer').style.display = 'none';
+                document.getElementById('submitSpinner').style.display = 'none';
+                submitBtn.disabled = false;
+                
+                // Show error
+                document.getElementById('errorMessage').innerHTML = `<strong>Network Error:</strong><br>${escapeHtml(error.message)}`;
+                document.getElementById('errorSection').style.display = 'block';
+            });
+        });
+        
+        function displayResults(data) {
+            // Display REX Analysis
+            const rexContent = formatREXAnalysis(data.rex_analysis);
+            document.getElementById('rexAnalysis').innerHTML = rexContent;
+            
+            // Display SQL Query
+            document.getElementById('sqlQuery').textContent = data.sql_query;
+            
+            // Display result count
+            document.getElementById('resultCount').textContent = `${data.result_count || 0} records found`;
+            
+            // Display results table
+            if (data.parsed_results && data.parsed_results.length > 0) {
+                displayResultsTable(data.parsed_results);
+            } else {
+                document.getElementById('resultsTable').innerHTML = `
+                    <div class="alert alert-info" role="alert">
+                        <h6>No data found</h6>
+                        <p>The query executed successfully but returned no results. Try modifying your search criteria.</p>
+                    </div>
+                `;
+            }
+            
+            // Show results section
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Scroll to results
+            document.getElementById('resultsSection').scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+        
+        function displayResultsTable(results) {
+            if (!results || results.length === 0) {
+                document.getElementById('resultsTable').innerHTML = `
+                    <div class="alert alert-warning" role="alert">
+                        No data to display
+                    </div>
+                `;
+                return;
+            }
+            
+            let tableHTML = `
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="table-dark">
+                            <tr>
+            `;
+            
+            // Determine number of columns from first row
+            const firstRow = results[0];
+            const columnCount = Array.isArray(firstRow) ? firstRow.length : 1;
+            
+            // Create headers
+            for (let i = 0; i < columnCount; i++) {
+                tableHTML += `<th scope="col">Column ${i + 1}</th>`;
+            }
+            tableHTML += `</tr></thead><tbody>`;
+            
+            // Create rows
+            results.forEach((row, rowIndex) => {
+                tableHTML += `<tr>`;
+                if (Array.isArray(row)) {
+                    row.forEach(cell => {
+                        const cellContent = escapeHtml(String(cell || ''));
+                        tableHTML += `<td title="${cellContent}">${cellContent}</td>`;
+                    });
+                } else {
+                    // Single value row
+                    tableHTML += `<td colspan="${columnCount}" title="${escapeHtml(String(row))}">${escapeHtml(String(row))}</td>`;
+                }
+                tableHTML += `</tr>`;
+            });
+            
+            tableHTML += `</tbody></table></div>`;
+            
+            // Add export button
+            tableHTML += `
+                <div class="mt-3">
+                    <button onclick="exportTableToCSV()" class="btn btn-outline-success btn-sm">
+                        📁 Export to CSV
+                    </button>
+                    <small class="text-muted ms-2">Hover over cells to see full content</small>
+                </div>
+            `;
+            
+            document.getElementById('resultsTable').innerHTML = tableHTML;
+        }
+        
+        function formatREXAnalysis(analysis) {
+            if (!analysis) {
+                return `
+                    <div class="alert alert-warning" role="alert">
+                        <h6>REX Analysis Unavailable</h6>
+                        <p>The analysis could not be generated for this query.</p>
+                    </div>
+                `;
+            }
+            
+            // Convert markdown-style formatting to HTML
+            let formattedAnalysis = escapeHtml(analysis);
+            
+            // Convert line breaks to HTML
+            formattedAnalysis = formattedAnalysis.replace(/\n/g, '<br>');
+            
+            // Convert numbered lists
+            formattedAnalysis = formattedAnalysis.replace(/^(\d+\.)/gm, '<strong>$1</strong>');
+            
+            // Convert bold text (markdown style)
+            formattedAnalysis = formattedAnalysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Convert headers
+            formattedAnalysis = formattedAnalysis.replace(/^### (.*?)$/gm, '<h6 class="mt-3 mb-2 text-primary">$1</h6>');
+            formattedAnalysis = formattedAnalysis.replace(/^## (.*?)$/gm, '<h5 class="mt-3 mb-2 text-primary">$1</h5>');
+            formattedAnalysis = formattedAnalysis.replace(/^# (.*?)$/gm, '<h4 class="mt-3 mb-2 text-primary">$1</h4>');
+            
+            return `<div class="rex-content">${formattedAnalysis}</div>`;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function exportTableToCSV() {
+            const table = document.querySelector('#resultsTable table');
+            if (!table) return;
+            
+            let csv = [];
+            const rows = table.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const cols = row.querySelectorAll('td, th');
+                const rowData = Array.from(cols).map(col => {
+                    let text = col.textContent.trim();
+                    // Escape quotes and wrap in quotes if contains comma
+                    if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+                        text = '"' + text.replace(/"/g, '""') + '"';
+                    }
+                    return text;
+                });
+                csv.push(rowData.join(','));
+            });
+            
+            const csvContent = csv.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'query_results.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

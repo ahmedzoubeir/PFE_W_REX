@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collections | Hybrid RAG</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 2rem; padding-bottom: 2rem; }
+        .collections-container { max-width: 800px; margin: 0 auto; }
+        .flash-messages { margin-bottom: 1.5rem; }
+        .back-link { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-link">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">← Back to Home</a>
+        </div>
+        
+        <h1 class="text-center mb-4">Document Collections</h1>
+        
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="collections-container p-4 border rounded bg-light">
+            <h2 class="mb-3">Available Collections</h2>
+            
+            {% if collections %}
+                <div class="list-group mb-3">
+                    {% for collection in collections %}
+                        <a href="{{ url_for('rag_select_collection', collection_name=collection) }}" class="list-group-item list-group-item-action">
+                            {{ collection }}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">No collections found. Upload a document first.</div>
+            {% endif %}
+            
+            <div class="d-grid gap-2">
+                <a href="{{ url_for('rag_index') }}" class="btn btn-primary">Back to Upload</a>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

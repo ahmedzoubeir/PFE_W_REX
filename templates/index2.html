@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid RAG Document System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 2rem; padding-bottom: 2rem; }
+        .upload-form { max-width: 600px; margin: 0 auto; }
+        .flash-messages { margin-bottom: 1.5rem; }
+        .back-link { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="back-link">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary">← Back to Home</a>
+        </div>
+        
+        <h1 class="text-center mb-4">Hybrid RAG Document System</h1>
+        
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="upload-form p-4 border rounded bg-light">
+            <h2 class="mb-3">Upload Document</h2>
+            <form action="{{ url_for('rag_upload_file') }}" method="POST" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="file" class="form-label">Select Document</label>
+                    <input type="file" class="form-control" id="file" name="file" required>
+                    <div class="form-text">Allowed formats: PDF, TXT, CSV, XLSX</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="model_embed" class="form-label">Embedding Model</label>
+                    <select class="form-select" id="model_embed" name="model_embed">
+                        <option value="mxbai-embed-large:latest" selected>MxBai Embed Large</option>
+                        <option value="all-MiniLM-L6-v2">MiniLM</option>
+                    </select>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">Upload & Process</button>
+                    <a href="{{ url_for('rag_list_collections') }}" class="btn btn-secondary">View Existing Collections</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
